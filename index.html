@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <script src="https://griffon.adobe.com/pluginBridge/pluginBridge.min.js"></script>
+    <script type="text/javascript">
+      let selectEventUuids = [];
+      window.pluginBridge.register({
+        init: (settings) => {
+          console.log('registered!');
+          console.log('settings:');
+          console.log(settings);
+        },
+        receiveEvents: (events) => {
+          const eventCounts = {};
+          let highestCount = 0;
+          let highestCountType;
+          events.reduce((acc, val) => {
+            if (!acc[val.type]) {
+              acc[val.type] = 0;
+            }
+            const count = acc[val.type] + 1;
+
+            if (count > highestCount) {
+              highestCount = count;
+              highestCountType = val.type;
+            }
+
+            acc[val.type] = count;
+            return acc;
+          }, eventCounts);
+          const container = document.getElementById('eventCounts');
+          container.innerHTML = '';
+          const printOut = document.createElement('pre');
+          printOut.innerHTML = JSON.stringify(eventCounts, null, 2);
+          container.appendChild(printOut);
+
+          const highestCountEvents = events.filter(event => event.type === highestCountType);
+          selectEventUuids = highestCountEvents.map(event => event.uuid);
+        },
+        receiveSelectedEvents: () => {
+          //do nothing
+        }
+      });
+      const selectHighestCountEvents = () => {
+        window.pluginBridge.selectEvents(selectEventUuids).then(() => {
+          console.log('successfully selected events!');
+        });
+      }
+    </script>
+  </head>
+<body class="spectrum--light">
+  <div id="content">Number of events in this session:</div>
+  <div id="eventCounts">
+    0
+  </div>
+  <div>
+    <button onclick="selectHighestCountEvents()">
+      Select Highest Count Type Events
+    </button>
+  </div>
+</body>
+</html>
