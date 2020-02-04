@@ -16,9 +16,10 @@ You may configure it as follows:
 
 ```
 localStorage.setItem('griffonPlugin', JSON.stringify({
-  name: 'Event Counter',
+  displayName: 'Event Counter',
   views: [{
-    name: 'Event List',
+    name: 'event-list',
+    displayName: 'Event List',
     src: 'https://localhost:1234/index.html'
   }]
 }))
