@@ -1,5 +1,5 @@
 # griffon-event-count-plugin
-Example project of how to build a Project Griffon Plugin
+Example project of how to build a Project Griffon View Plugin
 
 ## Getting Started
 Plugins are registered via the [Plugin Bridge](https://github.com/adobe/griffon-plugin-bridge). A brief description of how to implement the bridge in a plugin is provided in the [wiki](https://github.com/adobe/griffon-event-count-plugin/wiki)
