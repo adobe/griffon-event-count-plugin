@@ -21,7 +21,9 @@ localStorage.setItem('griffonPlugin', JSON.stringify([{
 }]))
 ```
 
-Note: _Make sure when calling setItem on localStorage that it is done on the iframe for ui.griffon.adobe.com_
+Notes: 
+_Make sure when calling setItem on localStorage that it is done on the iframe for ui.griffon.adobe.com_
+_You might need to load https://localhost:1234/index.html in a separate tab and accept the invalid certificate_
 
 ## Licensing
 
