@@ -15,14 +15,13 @@ Plugin development can now be done within the Project Griffon UI itself. This is
 You may configure it as follows:
 
 ```
-localStorage.setItem('griffonPlugin', JSON.stringify({
-  name: 'Event Counter',
-  views: [{
-    name: 'Event List',
-    src: 'https://localhost:1234/index.html'
-  }]
-}))
+localStorage.setItem('griffonPlugin', JSON.stringify([{
+  displayName: 'Event Counter',
+  src: 'https://localhost:1234/index.html'
+}]))
 ```
+
+Note: _Make sure when calling setItem on localStorage that it is done on the iframe for ui.griffon.adobe.com_
 
 ## Licensing
 
