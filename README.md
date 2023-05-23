@@ -7,8 +7,8 @@ Plugins are registered via the [Plugin Bridge](https://github.com/adobe/griffon-
 Plugins in Project Griffon are hosted on a static server and are loaded in the UI as an iframe. We'll use [Parcel](https://parceljs.org/) to host our plugin locally.
 
 ```
-npm install -g parcel-bundler
-parcel index.html --https
+npm install
+npm run start
 ```
 
 Plugin development can now be done within the Project Griffon UI itself. This is done by adding a plugin configuration object to local storage. The development plugin configuration is pulled from local storage and loaded along with the existing plugins. 

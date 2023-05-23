@@ -9,6 +9,7 @@ cypress/screenshots
 cypress/videos
 
 .cache
+.parcel-cache
 .tmp
 .nyc_output
 
