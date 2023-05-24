@@ -28,7 +28,7 @@ import {
   View,
   lightTheme
 } from '@adobe/react-spectrum';
-import ExtractRelevantEventsForSchema from './event.parser';
+import { ExtractRelevantEventsForSchema, AutoValidate}  from './event.parser';
 
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
@@ -105,7 +105,7 @@ const demoConfigSchema = {
 }
 
 // ENTER YOUR API KEY HERE
-const apiKey = '';
+const apiKey = '8f8717d7d1554376bf6f33cd9860191e';
 
 export default function App() {
   const [settings, setSettings] = useState({});
@@ -207,12 +207,14 @@ export default function App() {
           width="size-6000"
         />
         <Button
-            onPress={() => ExtractRelevantEventsForSchema(demoConfigSchema, events, 3)}
-            variant="cta"
-          >
-            Extract relevant events for schema
+          onPress={() => AutoValidate(events)}
+          variant="cta"
+        >
+            Validate
           </Button>
       </View>
     </SpectrumProvider>
   );
 }
+
+
