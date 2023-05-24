@@ -28,6 +28,7 @@ import {
   View,
   lightTheme
 } from '@adobe/react-spectrum';
+import ExtractRelevantEventsForSchema from './event.parser';
 
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
@@ -43,6 +44,65 @@ const buildPrompt = (exampleEvent, promptText) => `
   ${promptText}
   Generate the validation function:
 `
+
+const demoConfigSchema = {
+  "$id": "http://griffon.adobe.com/schemas/aep-mobile/configuration",
+  "shortDesc": "Configuration Event",
+  "group": "event",
+  "allOf": [{ "$ref": "http://griffon.adobe.com/schemas/aep-mobile/mobileEvent" }],
+  "type": "object",
+  "properties": {
+    "payload": {
+      "inherit": true,
+      "type": "object",
+      "properties": {
+        "ACPExtensionEventData": {
+          "inherit": true,
+          "type": "object",
+          "alias": "eventData",
+          "description": "The full list of current configuration values",
+          "properties": {
+            "build.environment": {
+              "alias": "buildEnvironment",
+              "description": "In the Launch UI, the type of environment this configuration was generated for",
+              "type": "string",
+              "mock": "dev"
+            },
+            "experienceCloud.org": {
+              "alias": "experienceCloudOrg",
+              "description": "The IMS Org that the mobile app's config was created by",
+              "type": "string",
+              "mock": "abc@AdobeOrg"
+            },
+            "property.id": {
+              "alias": "launchPropertyId",
+              "description": "The ID of the property inside launch",
+              "type": "string",
+              "mock": "abcd1234"
+            },
+            "rules.url": {
+              "alias": "rulesUrl",
+              "description": "The URL to download the rules configuration for the property",
+              "type": "string",
+              "mock": "http://assets.adobedtm.com/abc/abcdefg-development-rules.zip"
+            }
+          }
+        },
+        "ACPExtensionEventSource": {
+          "inherit": true,
+          "const": "com.adobe.eventSource.responseContent"
+        },
+        "ACPExtensionEventType": {
+          "inherit": true,
+          "const": "com.adobe.eventType.configuration"
+        }
+      },
+      "required": [
+        "ACPExtensionEventData"
+      ]
+    }
+  }
+}
 
 // ENTER YOUR API KEY HERE
 const apiKey = '';
@@ -90,6 +150,7 @@ export default function App() {
   }, [pluginBridge]);
 
   const handleSubmit = useCallback(async () => {
+    console.log("handleSubmit")
     if (!apiKey) {
       setResponseText('Please enter your API key in src/app.jsx');
       return;
@@ -145,6 +206,12 @@ export default function App() {
           value={responseText}
           width="size-6000"
         />
+        <Button
+            onPress={() => ExtractRelevantEventsForSchema(demoConfigSchema, events, 3)}
+            variant="cta"
+          >
+            Extract relevant events for schema
+          </Button>
       </View>
     </SpectrumProvider>
   );
