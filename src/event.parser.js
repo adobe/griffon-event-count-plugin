@@ -82,7 +82,6 @@ function GetRegisteredExtensions(events) {
 
 // Utils
 function extractSDKEvents(events, type, source) {
-  console.log("extractSDKEvents")
   const extractedEvents = events.filter( event =>
     equalsIgnoreCase(event.type, "generic") && 
     equalsIgnoreCase(event.payload.ACPExtensionEventType, type) && 

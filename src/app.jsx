@@ -207,7 +207,7 @@ export default function App() {
           width="size-6000"
         />
         <Button
-          onPress={() => AutoValidate(events)}
+          onPress={() => runValidator()}
           variant="cta"
         >
             Validate
@@ -215,6 +215,13 @@ export default function App() {
       </View>
     </SpectrumProvider>
   );
+
+  // Call event parser and validate
+  function runValidator() {
+    ExtractRelevantEventsForSchema(demoConfigSchema, events, 3)
+    AutoValidate(events)
+  }
 }
+
 
 
