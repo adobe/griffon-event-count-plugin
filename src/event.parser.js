@@ -25,7 +25,7 @@ const EVENT_TYPE_HUB = "com.adobe.eventtype.hub";
 const STATE_OWNER_HUB = "com.adobe.module.eventhub";
 const defaultNoEvents = 10;
 
-export {ExtractRelevantEventsForSchema, AutoValidate};
+export {AutoValidate};
 
 // extracts the most recent events that match the provided schema 
 // verifies the events match the type and source and returns the last n events that match that or last 10 events if n is not provided
@@ -56,11 +56,37 @@ function ExtractRelevantEventsForSchema(schema, events, n = defaultNoEvents, typ
     return lastMatchingEvents
 };
 
+
 function AutoValidate(events) {
+  // extract the most recent registered extensions
   console.log(`Assurance Co-Pilot`)
   const registeredExtensions = GetRegisteredExtensions(events)
   console.log(registeredExtensions);
+
+  // for each extension registered, extract the schemas list
+
+
+  // registeredExtensions.forEach(extensions => {
+  //     // for each extension, extract the schemas
+      
+
+  //     //todo:  for each schema, extract relevant events
+  //     const relevantEventsForSchema = ExtractRelevantEventsForSchema(schema, events, 2)
+
+  //     // todo: count the tokens for the returned events 
+  //     // if over limit, trim down the events
+  //     // run prompt template with schema and events
+  //     // update the validation results list
+  // }); 
 };
+
+function ValidateOnDemand(schemas, events) {
+
+};
+
+function ReadSchemasFromFile() {
+  
+}
 
 function GetRegisteredExtensions(events) {
   // Extract all the shared state update events with state owner hub
