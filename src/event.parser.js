@@ -29,6 +29,8 @@ const defaultNoEvents = 10;
 export {AutoValidate};
 
 function AutoValidate(events) {
+  const startTime = getTS()
+
   if (events == undefined || events.length == 0) {
     console.log("Empty Assurance events!");
     return;
@@ -38,26 +40,53 @@ function AutoValidate(events) {
   const registeredExtensions = GetRegisteredExtensions(events)
   console.log(registeredExtensions);
 
-  for (var key of Object.keys(registeredExtensions)) {
-    console.log(key)
-    console.log(registeredExtensions[key])
+  for (var name of Object.keys(registeredExtensions)) {
+    //console.log(name)
+    let extensionDetails = registeredExtensions[name]
+    console.log(extensionDetails.friendlyName);
+
+
+
+    console.log(`Getting schemas and events for ${extensionDetails.friendlyName}`)
+    let schemas = getSchema(validationSchemaJSON, extensionDetails.friendlyName);
+    
+    schemas.forEach(schema => {
+      console.log(`Schemas extracted for ${extensionDetails.friendlyName}`);
+      console.log(schema);
+
+      const relevantEventsForSchema = extractRelevantEventsForSchema(schema, events, 2);
+      console.log(relevantEventsForSchema);
+
+      
+      // todo: count the tokens for the returned events 
+      // if over limit, trim down the events
+      // run prompt template with schema and events
+      // update the validation results list
+    })
   }
 
-
-  // registeredExtensions.forEach(extensions => {
-  //     // for each extension, extract the schemas
-      
-  console.log(validationSchemaJSON);
-  //     //todo:  for each schema, extract relevant events
-  //     const relevantEventsForSchema = ExtractRelevantEventsForSchema(schema, events, 2)
-
-  //     // todo: count the tokens for the returned events 
-  //     // if over limit, trim down the events
-  //     // run prompt template with schema and events
-  //     // update the validation results list
-  // }); 
-  
+  const endTime = getTS()
+  const timeTaken = endTime - startTime
+  console.log(`AutoValidate took ` + timeTaken +` ms`)
 };
+
+function getSchema(validationSchemaJSON, extensionName) {
+  let filteredSchemas = [];
+  if(validationSchemaJSON == null) {
+    console.log("Error: Validation Schema Json file is invalid!");
+    return filteredSchemas;
+  }
+
+  for (var key of Object.keys(validationSchemaJSON)) {
+    let schemaBody = validationSchemaJSON[key]
+   
+    if(containsIgnoreCase(schemaBody.shortDesc, extensionName)) {
+      filteredSchemas.push(schemaBody);
+    }
+  }
+
+  return filteredSchemas;
+}
 
 function ValidateOnDemand(schemas, events) {
 
@@ -86,18 +115,11 @@ function GetRegisteredExtensions(events) {
 
 // extracts the most recent events that match the provided schema 
 // verifies the events match the type and source and returns the last n events that match that or last 10 events if n is not provided
-function ExtractRelevantEventsForSchema(schema, events, n = defaultNoEvents)  {
-  const startTime = getTS()
+function extractRelevantEventsForSchema(schema, events, n = defaultNoEvents)  {
   const lastEvents = n > 0 ? n : defaultNoEvents
   
   const matchingEvents = extractSDKEvents(events, schema.properties.payload.properties.ACPExtensionEventType.const, schema.properties.payload.properties.ACPExtensionEventSource.const)
-
   const lastMatchingEvents = matchingEvents.slice(0, lastEvents)
-  console.log("extractRelevantEvents:")
-  console.log(lastMatchingEvents);
-  const endTime = getTS()
-  const timeTaken = endTime - startTime
-  console.log(`extractRelevantEvents took ` + timeTaken +` ms`)
 
   return lastMatchingEvents
 };
@@ -181,3 +203,10 @@ function equalsIgnoreCase(s1, s2) {
   }
   return s1.toLowerCase() === s2.toLowerCase();
 };
+
+function containsIgnoreCase(s1, s2) {
+  let lowerCaseS1 = s1.toLowerCase();
+  let lowerCaseS2  = s2.toLowerCase();
+
+  return lowerCaseS1.includes(lowerCaseS2);
+}

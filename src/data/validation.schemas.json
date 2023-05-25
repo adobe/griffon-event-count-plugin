@@ -1,7 +1,7 @@
 [
     {
     "$id": "http://griffon.adobe.com/schemas/aep-mobile/trackState",
-    "shortDesc": "Track State Event",
+    "shortDesc": "Analytics Track State Event",
     "group": "event",
     "type": "object",
     "properties": {
