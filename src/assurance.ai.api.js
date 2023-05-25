@@ -21,12 +21,19 @@ import { SubmitCompletion } from './openai.handler';
 import { GetRegisteredExtensions, GetSchema, ExtractRelevantEventsForSchema, ExtractSDKEvents} from './event.parser';
 //import validationSchemaJSON from './data/validation.schemas.json';
 
-export { GetSDKEventsToValidate,  GetAIValidation};
+export { GetSDKEventsToValidate,  GetAIValidation };
 
 let extensionToTypeMap = {
   "Analytics" : {
-    "type" : "com.adobe.eventtype.analytics",
-    "source" : "com.adobe.eventsource.responsecontent"
+    "type" : "com.adobe.eventtype.generic.track",
+    "source" : "com.adobe.eventsource.requestcontent",
+    "count" : 2
+  },
+
+  "Configuration" : {
+    "type" : "com.adobe.eventtype.configuration",
+    "source" : "com.adobe.eventsource.responsecontent",
+    "count" : 1
   }
 }
 
@@ -38,6 +45,7 @@ function GetSDKEventsToValidate(events) {
     }
   
     let registeredExtensions = GetRegisteredExtensions(events)
+    //console.log(registeredExtensions);
 
     for (var name of Object.keys(registeredExtensions)) {
         let extensionFriendlyName = registeredExtensions[name].friendlyName;
@@ -50,7 +58,8 @@ function GetSDKEventsToValidate(events) {
 
         let sdkEventType = sdkEventDetails.type;
         let sdkEventSource = sdkEventDetails.source;
-        let sdkEvents = ExtractSDKEvents(events, sdkEventType, sdkEventSource, 2);
+        let eventsToExtract = sdkEventDetails.count != null ? sdkEventDetails.count : 2;
+        let sdkEvents = ExtractSDKEvents(events, sdkEventType, sdkEventSource, eventsToExtract);
 
         extensionsToSDKEventsMap.set(extensionFriendlyName, sdkEvents)
         //console.log(extensionsToSDKEventsMap)
