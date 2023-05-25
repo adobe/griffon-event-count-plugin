@@ -19,58 +19,15 @@
  */
 
 var flatten = require('flat');
-import validationSchemaJSON from './data/validation.schemas.json';
 
 const EVENT_SOURCE_SHARED_STATE = "com.adobe.eventsource.sharedstate";
 const EVENT_TYPE_HUB = "com.adobe.eventtype.hub";
 const STATE_OWNER_HUB = "com.adobe.module.eventhub";
 const defaultNoEvents = 10;
 
-export {AutoValidate};
+export {GetSchema, GetRegisteredExtensions, ExtractRelevantEventsForSchema, ExtractSDKEvents};
 
-function AutoValidate(events) {
-  const startTime = getTS()
-
-  if (events == undefined || events.length == 0) {
-    console.log("Empty Assurance events!");
-    return;
-  }
-
-  console.log(`Assurance Co-Pilot`)
-  const registeredExtensions = GetRegisteredExtensions(events)
-  console.log(registeredExtensions);
-
-  for (var name of Object.keys(registeredExtensions)) {
-    //console.log(name)
-    let extensionDetails = registeredExtensions[name]
-    console.log(extensionDetails.friendlyName);
-
-
-
-    console.log(`Getting schemas and events for ${extensionDetails.friendlyName}`)
-    let schemas = getSchema(validationSchemaJSON, extensionDetails.friendlyName);
-    
-    schemas.forEach(schema => {
-      console.log(`Schemas extracted for ${extensionDetails.friendlyName}`);
-      console.log(schema);
-
-      const relevantEventsForSchema = extractRelevantEventsForSchema(schema, events, 2);
-      console.log(relevantEventsForSchema);
-
-      
-      // todo: count the tokens for the returned events 
-      // if over limit, trim down the events
-      // run prompt template with schema and events
-      // update the validation results list
-    })
-  }
-
-  const endTime = getTS()
-  const timeTaken = endTime - startTime
-  console.log(`AutoValidate took ` + timeTaken +` ms`)
-};
-
-function getSchema(validationSchemaJSON, extensionName) {
+function GetSchema(validationSchemaJSON, extensionName) {
   let filteredSchemas = [];
   if(validationSchemaJSON == null) {
     console.log("Error: Validation Schema Json file is invalid!");
@@ -87,14 +44,6 @@ function getSchema(validationSchemaJSON, extensionName) {
 
   return filteredSchemas;
 }
-
-// function ValidateOnDemand(schemas, events) {
-
-// };
-
-// function ReadSchemasFromFile() {
-  
-// }
 
 function GetRegisteredExtensions(events) {
   const extractedEvents = extractSharedStateEvent(events, STATE_OWNER_HUB);
@@ -113,19 +62,9 @@ function GetRegisteredExtensions(events) {
   return null;
 };
 
-// extracts the most recent events that match the provided schema 
-// verifies the events match the type and source and returns the last n events that match that or last 10 events if n is not provided
-function extractRelevantEventsForSchema(schema, events, n = defaultNoEvents)  {
-  const lastEvents = n > 0 ? n : defaultNoEvents
-  
-  const matchingEvents = extractSDKEvents(events, schema.properties.payload.properties.ACPExtensionEventType.const, schema.properties.payload.properties.ACPExtensionEventSource.const)
-  const lastMatchingEvents = matchingEvents.slice(0, lastEvents)
+function ExtractSDKEvents(events, type, source, n = defaultNoEvents, assuranceEventType = "generic") {
+  let eventCount = n > 0 ? n : defaultNoEvents
 
-  return lastMatchingEvents
-};
-
-// Utils
-function extractSDKEvents(events, type, source, assuranceEventType = "generic") {
   const extractedEvents = events.filter( event =>
     equalsIgnoreCase(event.type, assuranceEventType) && 
     !ignoreEvent(event) &&
@@ -133,11 +72,28 @@ function extractSDKEvents(events, type, source, assuranceEventType = "generic") 
     equalsIgnoreCase(event.payload.ACPExtensionEventSource, source)
   );
 
-  return extractedEvents;
+  const nExtractedEvents = extractedEvents.slice(0, eventCount);
+
+  return nExtractedEvents;
 };
 
+// extracts the most recent events that match the provided schema 
+// verifies the events match the type and source and returns the last n events that match that or last 10 events if n is not provided
+function ExtractRelevantEventsForSchema(schema, events, n = defaultNoEvents)  {
+  const lastEvents = n > 0 ? n : defaultNoEvents
+  
+  const matchingEvents = ExtractSDKEvents(events, schema.properties.payload.properties.ACPExtensionEventType.const, schema.properties.payload.properties.ACPExtensionEventSource.const)
+  const lastMatchingEvents = matchingEvents.slice(0, lastEvents)
+
+  return lastMatchingEvents
+};
+
+/*
+* Utils
+*/
+
 function extractSharedStateEvent(events, stateOwner) {
-  const extractedEvents = extractSDKEvents(events, EVENT_TYPE_HUB, EVENT_SOURCE_SHARED_STATE);
+  const extractedEvents = ExtractSDKEvents(events, EVENT_TYPE_HUB, EVENT_SOURCE_SHARED_STATE);
 
   const extractedSharedStateEvents = extractedEvents.filter( event =>
     equalsIgnoreCase(event.payload.ACPExtensionEventData.stateowner, stateOwner)
@@ -145,44 +101,6 @@ function extractSharedStateEvent(events, stateOwner) {
 
   return extractedSharedStateEvents;
 };
-
-function getTextForEvent(event) {
-  var eventText = "invalidEvent"
-  var flattenedEventData = null
-  var flattenedMetadata = null
-
-  const payload = event.payload;
-  if(payload.ACPExtensionEventData != null) {
-    flattenedEventData = flatten(payload.ACPExtensionEventData);
-  }
-
-  if(payload.metadata != null) {
-    flattenedMetadata = flatten(payload.metadata);
-  }
-    
-  const eName = payload.ACPExtensionEventName;
-  const uuid = event.uuid;
-  const ts = event.timestamp;
-  const type = payload.ACPExtensionEventType;
-  const source = payload.ACPExtensionEventSource;
-
-  eventText = `Event ${eName} with uuid ${uuid} of type ${type} and source ${source} at timestamp ${ts}`;
-  if (flattenedEventData != undefined) {
-    const eventDataString = JSON.stringify(flattenedEventData);
-    eventText += ` with data ${eventDataString}`;
-  }
-
-  if (flattenedMetadata != undefined) {
-    const metadataString = JSON.stringify(flattenedMetadata);
-    eventText += ` with metadata ${metadataString}`
-  }
-
-  console.log(JSON.stringify(event));
-  console.log(eventText);
-  
-
-  return eventText
-}
 
 function ignoreEvent(event) {
   return (event.payload == undefined ||
@@ -209,4 +127,4 @@ function containsIgnoreCase(s1, s2) {
   let lowerCaseS2  = s2.toLowerCase();
 
   return lowerCaseS1.includes(lowerCaseS2);
-}
+};
