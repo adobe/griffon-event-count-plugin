@@ -1,10 +1,18 @@
 import GPT3Tokenizer from 'gpt3-tokenizer';
+import { OpenAI } from "langchain/llms/openai";
+import { PromptTemplate } from "langchain/prompts";
+import { LLMChain } from "langchain/chains";
+import { JSONLoader } from "langchain/document_loaders/fs/json";
+import { FaissStore } from "langchain/vectorstores/faiss";
+import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 
 const API_KEY = ''; // ENTER YOUR API KEY HERE
+const COMPLETION_INSTANCE_NAME = 'eastus.api.cognitive.microsoft.com'
 const COMPLETION_MODEL = 'ModelGPT35Turbo'
 const COMPLETION_API_VERSION = '2022-12-01'
-const COMPLETION_URL = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${COMPLETION_MODEL}/completions?api-version=${COMPLETION_API_VERSION}`
-const MAX_INPUT_TOKENS_LENGTH = 3000;
+const COMPLETION_BASE_PATH = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${COMPLETION_MODEL}`
+// const COMPLETION_URL = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${COMPLETION_MODEL}/completions?api-version=${COMPLETION_API_VERSION}`
+const MAX_INPUT_TOKENS_LENGTH = 3500;
 
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
@@ -21,65 +29,97 @@ const buildPrompt = (exampleEvent, promptText) => `
   Generate the validation function:
 `
 
-const completionPromptTemplate = (schemaString, eventsString) => `
-    You are a friendly assistant that helps validating if the provided input events are valid based on a given JSON schema definition.
-    The schema defines the required fields in a case insensitive manner, ignore timestamps and the order of events.
-    Schema: ${schemaString}
-    Events: ${eventsString} 
+const promptTemplate = "Given the following JSON schema definition, can you verify whether the input events are valid.\nSCHEMA:\n{schemaString}\n\n\nEVENTS:\n{eventsString}\nVerify the input events and provide your answer in the JSON format with the following keys for each event in the array:\nresult:<enum value PASSED or FAIL>,reason:<failure reason or empty string if validation passed>,uuid:<event uuid>."
 
-    Return the validation result with the following format:
-    {"event.uuid": "", "result": ""}  where the result should be PASSED or FAIL depending on the validation result.
-`
+export {SubmitCompletion};
 
-export {SubmitCompletion, CreatePromptForCompletion};
-
-async function SubmitCompletion(schema, events, promptText) {
+async function SubmitCompletion(events, promptText) {
     if (!API_KEY) {
         return 'Please enter your API key in src/openai.handler.jsx';
     }
 
-    // todo: extract schemas from embedings for promptText
-  
-    const response = await fetch(COMPLETION_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'api-key': API_KEY
+    // Read event schemas from json file and convert those to documents using JSONLoader
+    const documents = await loadDoc("src/data/validation.schemas.json")
+    console.log(documents)
+   
+    // Create vector store from the documents 
+    const faissVectorStore = await createVectorStore(documents)
+
+    // Search for the most similar document (schema)
+    const schemaResult = await faissVectorStore.similaritySearch(events[0], 1);
+    console.log(schemaResult);
+
+     // Generate subset of events that can be supplied in the model prompt for validation
+     eventsSubset = getEventsForCompletion(schemaResult, events)
+
+    // Create prompt template
+    const prompt = new PromptTemplate({
+        template: promptTemplate,
+        inputVariables: ["schemaString", "eventsString"],
+      });
+
+    // Create Azure OpenAI model
+    const model = new OpenAI({
+        // azureOpenAIApiKey: API_KEY,
+        // azureOpenAIApiInstanceName: COMPLETION_INSTANCE_NAME,
+        // azureOpenAIApiDeploymentName: COMPLETION_MODEL,
+        // azureOpenAIApiVersion: COMPLETION_API_VERSION,
+        modelName: COMPLETION_MODEL,
+        openAIApiKey: API_KEY,
+        temperature: 0.2,
+        topP: 1,
+        frequencyPenalty: 0,
+        presencePenalty: 0,
+        maxTokens: 2000,
+        stop: ['"""', "```", "###"]
+      },
+      {
+        baseOptions: {
+            headers: {
+                'api-key': API_KEY,
+            },
+            params: {
+                'api-version': COMPLETION_API_VERSION
+            }
         },
-        body: JSON.stringify({
-            prompt: CreatePromptForCompletion(schema, events),
-            max_tokens: 1000,
-            temperature: 0.9,
-            frequency_penalty: 0,
-            presence_penalty: 0,
-            top_p: 1,
-            stop: null
-        })
-    });
-  
-    const json = await response.json();
-    return json;
-}
-
-// Creates the prompt message for the completion API
-function CreatePromptForCompletion(schema, events) {
-    const schemaString = JSON.stringify(schema);
-    const eventsString = JSON.stringify(events);
-    const schemaTokensCount = countTokens(schemaString);
-    const eventsTokensCount = countTokens(eventsString);
-    console.log("schemaTokensCount: " + schemaTokensCount);
-    console.log("eventsTokensCount: " + eventsTokensCount);
-
-    if (schemaTokensCount + eventsTokensCount > MAX_INPUT_TOKENS_LENGTH) {
-        // todo: trim down the events
-    }
-
-    // create prompt with validation schema and input events
-    const prompt = completionPromptTemplate(schemaString, eventsString);
-    console.log("prompt: " + prompt);
-    return prompt;
-}
+        basePath: COMPLETION_BASE_PATH
+        });
  
+    // Create a chain using model and prompt
+    const chain = new LLMChain({ llm: model, prompt: prompt });
+    
+    // Call the chain providing the prompt expansions.
+    const res = await chain.call({ 
+        schemaString: schemaResult, eventsString: eventsSubset }
+    );
+
+    console.log(res);
+    return res.text;
+}
+
+function getEventsForCompletion(schema, events) {
+    const schemaString = JSON.stringify(schema);
+    const schemaTokensCount = countTokens(schemaString);
+    console.log("schemaTokensCount: " + schemaTokensCount);
+
+    const promptTemplateTokensCount = countTokens(promptTemplate);
+    console.log("promptTemplateTokensCount: " + promptTemplateTokensCount);
+
+    const eventsArr = []
+    var totalTokensCount = schemaTokensCount + promptTemplateTokensCount;
+    for (evt in events) {
+        const eventString = JSON.stringify(evt);
+        const eventTokensCount = countTokens(eventString);
+        if (totalTokensCount + eventTokensCount > MAX_INPUT_TOKENS_LENGTH) {
+            break;
+        }
+        totalTokensCount = totalTokensCount + eventTokensCount
+        console.log("totalTokensCount: " + totalTokensCount);
+        eventsArr.push(evt)
+    }
+    return JSON.stringify(eventsArr)   
+}
+
 //Returns the number of tokens in a text string
 function countTokens(input) {
     if (input == undefined || input.length == 0) {
@@ -89,4 +129,21 @@ function countTokens(input) {
     const tokenizer = new GPT3Tokenizer({ type: 'gpt3' }); // or 'codex'
     const encoded = tokenizer.encode(input);
     return encoded.bpe.length;
+}
+
+// Load JSON file and generate documents
+async function loadDoc(file) {
+    const loader = new JSONLoader(file)
+    const docs = await loader.load()
+    console.log({ docs });
+    return docs;
+}
+
+// Create a FAISS vector store for embeddings
+async function createVectorStore(documents) {
+    const faissVectorStore = await FaissStore.fromDocuments(
+        documents,
+        new OpenAIEmbeddings()
+      );
+    return faissVectorStore;
 }

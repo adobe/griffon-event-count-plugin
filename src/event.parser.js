@@ -88,13 +88,13 @@ function getSchema(validationSchemaJSON, extensionName) {
   return filteredSchemas;
 }
 
-function ValidateOnDemand(schemas, events) {
+// function ValidateOnDemand(schemas, events) {
 
-};
+// };
 
-function ReadSchemasFromFile() {
+// function ReadSchemasFromFile() {
   
-}
+// }
 
 function GetRegisteredExtensions(events) {
   const extractedEvents = extractSharedStateEvent(events, STATE_OWNER_HUB);

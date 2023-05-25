@@ -77,10 +77,10 @@ export default function App() {
     console.log("handleSubmit")
   
     setLoading(true);
-    const json = await SubmitCompletion(null, events, promptText)
+    const res = await SubmitCompletion(events, promptText)
 
     setLoading(false);
-    setResponseText(json.choices[0].text);
+    setResponseText(res);
   }, [promptText]);
 
   return (
