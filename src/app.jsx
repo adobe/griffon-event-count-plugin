@@ -28,8 +28,7 @@ import {
   View,
   lightTheme
 } from '@adobe/react-spectrum';
-import { AutoValidate}  from './event.parser';
-import { SubmitCompletion } from './openai.handler';
+import { GetSDKEventsToValidate, GetAIValidation}  from './assurance.ai.api';
 
 export default function App() {
   const [settings, setSettings] = useState({});
@@ -73,14 +72,24 @@ export default function App() {
     })
   }, [pluginBridge]);
 
-  const handleSubmit = useCallback(async () => {
-    console.log("handleSubmit")
+  const handleAutoValidate = useCallback(async (events) => {
+    console.log("handleAutoValidate")
   
     setLoading(true);
-    const json = await SubmitCompletion(null, events, promptText)
+    const extensionToEventsMap = GetSDKEventsToValidate(events);
+    console.log(extensionToEventsMap);
 
+    for (const [extensionName, sdkEvents] of extensionToEventsMap) { 
+      //console.log(extensionName);
+      //console.log(sdkEvents);
+      let result = await GetAIValidation(sdkEvents);
+      let resString  = JSON.stringify(result);
+
+      setResponseText(responseText + resString);
+    }
+    
+    
     setLoading(false);
-    setResponseText(json.choices[0].text);
   }, [promptText]);
 
   return (
@@ -94,11 +103,10 @@ export default function App() {
             value={promptText}
           />
           <Button
-            isDisabled={loading}
-            onPress={handleSubmit}
+            onPress={() => handleAutoValidate(events)}
             variant="cta"
           >
-            Submit
+            Auto-validate
           </Button>
           {loading && <ProgressCircle isIndeterminate />}
         </Flex>
@@ -109,12 +117,6 @@ export default function App() {
           value={responseText}
           width="size-6000"
         />
-          <Button
-            onPress={() => AutoValidate(events)}
-            variant="cta"
-          >
-            Auto-validate
-          </Button>
       </View>
     </SpectrumProvider>
   );
