@@ -13,6 +13,7 @@
   "dependencies": {
     "@adobe/react-spectrum": "^3.26.0",
     "flat": "^5.0.2",
+    "gpt3-tokenizer": "^1.1.5",
     "parcel": "^2.8.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
