@@ -25,7 +25,7 @@ const EVENT_TYPE_HUB = "com.adobe.eventtype.hub";
 const STATE_OWNER_HUB = "com.adobe.module.eventhub";
 const defaultNoEvents = 10;
 
-export {GetTextForEvent};
+export {GetTextForEvent, GetTextForEventSchema};
 
 function GetTextForEvent(event) {
     var eventText = "invalidEvent"
@@ -41,26 +41,57 @@ function GetTextForEvent(event) {
       flattenedMetadata = flatten(payload.metadata);
     }
       
-    const eName = payload.ACPExtensionEventName;
-    const uuid = event.uuid;
-    const ts = event.timestamp;
-    const type = payload.ACPExtensionEventType;
-    const source = payload.ACPExtensionEventSource;
+    let eName = payload.ACPExtensionEventName;
+    let uuid = event.uuid;
+    let ts = event.timestamp;
+    let type = payload.ACPExtensionEventType;
+    let source = payload.ACPExtensionEventSource;
   
     eventText = `Event ${eName} with uuid ${uuid} of type ${type} and source ${source} at timestamp ${ts}`;
     if (flattenedEventData != undefined) {
-      const eventDataString = JSON.stringify(flattenedEventData);
+        let eventDataString = JSON.stringify(flattenedEventData);
       eventText += ` with data ${eventDataString}`;
     }
   
     if (flattenedMetadata != undefined) {
-      const metadataString = JSON.stringify(flattenedMetadata);
+        let metadataString = JSON.stringify(flattenedMetadata);
       eventText += ` with metadata ${metadataString}`
     }
   
-    console.log(JSON.stringify(event));
-    console.log(eventText);
-    
+    console.log(eventText);  
   
     return eventText
   };
+
+  function GetTextForEventSchema(schemaString) {
+    var schemaText = "invalidEvent"
+    let schema = JSON.parse(schemaString)
+ 
+    console.log(schema.properties);
+    
+    let type = schema.properties.payload.properties.ACPExtensionEventType.const;
+    let source = schema.properties.payload.properties.ACPExtensionEventSource.const;
+
+    schemaText = `Schema set of rules to validate the. Event must have ACPExtensionEventType = ${type} and ACPExtensionEventSource = ${source}. `
+    const requiredEventProperties = schema.required;
+    if(requiredEventProperties != null && requiredEventProperties.length > 0) {
+        schemaText += "Event must have this properties. ";
+        requiredEventProperties.forEach(prop => {
+            schemaText += ` ${prop},`;
+        })
+    }
+  
+    const requiredEventFields = schema.properties.payload.required
+    if(requiredEventFields != null && requiredEventFields.length > 0) {
+        schemaText += "Event data must have these required fields.";
+        requiredEventFields.forEach(field => {
+            schemaText += ` ${field},`;
+        })
+      
+    }
+    
+    console.log(schemaText);
+    
+  
+    return schemaText
+  }

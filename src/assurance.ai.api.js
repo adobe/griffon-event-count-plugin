@@ -82,6 +82,8 @@ function GetSDKEventsToValidate(events) {
 
 
 async function GetAIValidation(chain, vectorStore, sdkEvents) {
-    const res = await submitCompletion(chain, vectorStore, sdkEvents);
-    return res
+  //const res = await submitCompletion(chain, vectorStore, sdkEvents, true, true); // NaturalLanguage Schema, NaturalLanguage Event
+  //const res = await submitCompletion(chain, vectorStore, sdkEvents, true, false); // NaturalLanguage Schema, JSON Event
+  const res = await submitCompletion(chain, vectorStore, sdkEvents); // JSON Schema, JSON Event
+  return res
 };
