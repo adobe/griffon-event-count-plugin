@@ -118,15 +118,13 @@ async function submitCompletion(chain, vectorStore, events, nlSchema = false, nl
     const eventForSchemaSelection = events[0]
     const eventForSchemaSelectionStr = JSON.stringify(eventForSchemaSelection)
     const schemaResult = await vectorStore.similaritySearch(eventForSchemaSelectionStr, 1);
-    console.log(`Selected schema for event ${eventForSchemaSelection.payload.ACPExtensionEventType} ${eventForSchemaSelection.payload.ACPExtensionEventSource}: ${eventForSchemaSelectionStr}`);
+    let schemaDoc = schemaResult[0].pageContent;
+    var schemaString = nlSchema ? GetTextForEventSchema(schemaDoc) : schemaDoc;
+
+    console.log(`Selected schema for event ${eventForSchemaSelection.payload.ACPExtensionEventType} ${eventForSchemaSelection.payload.ACPExtensionEventSource}: ${schemaString}`);
 
     // Generate subset of events that can be supplied in the model prompt for validation
-    let eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);
-
-    let schemaDoc = schemaResult[0].pageContent;
-    
-    var schemaString = nlSchema ? GetTextForEventSchema(schemaDoc) : schemaDoc;
-   
+    let eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);    
     let eventsString = eventsSubset;
     
     let res = await openAiCall(chain, schemaString, eventsString)
