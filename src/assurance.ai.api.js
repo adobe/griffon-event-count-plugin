@@ -18,8 +18,7 @@
  * ************************************************************************
  */
 import { submitCompletion } from './openai.handler';
-import { GetRegisteredExtensions, GetSchema, ExtractRelevantEventsForSchema, ExtractSDKEvents} from './event.parser';
-//import validationSchemaJSON from './data/validation.schemas.json';
+import { GetRegisteredExtensions, ExtractSDKEvents} from './event.parser';
 
 export { GetSDKEventsToValidate,  GetAIValidation };
 
@@ -37,11 +36,13 @@ let extensionToTypeMap = {
   "com.adobe.edge" : {
     "type" : "com.adobe.eventtype.edge",
     "source" : "com.adobe.eventsource.requestcontent",
+    "name": "AEP Request Event",
     "count" : 2
   },
   "com.adobe.optimize" : {
     "type" : "com.adobe.eventtype.edge",
     "source" : "com.adobe.eventsource.requestcontent",
+    "name": "Optimize Personalization Request",
     "count" : 2
   },
   "com.adobe.module.lifecycle": {
@@ -50,8 +51,6 @@ let extensionToTypeMap = {
     "count" : 1
   }
 }
-
-const DEFAULT_EVENT_NO_TO_EXTRACT = 1;
 
 // Returns a dictionary with extension name as key and array of events to validate as value
 function GetSDKEventsToValidate(events) {
@@ -65,15 +64,12 @@ function GetSDKEventsToValidate(events) {
     console.log(registeredExtensions);
 
     for (var name of Object.keys(registeredExtensions)) {
-        let sdkEventDetails = extensionToTypeMap[name];
-        if(sdkEventDetails == null || sdkEventDetails == undefined) {
+        let matcher = extensionToTypeMap[name];
+        if(matcher == null || matcher == undefined) {
           continue;
         }
 
-        let sdkEventType = sdkEventDetails.type;
-        let sdkEventSource = sdkEventDetails.source;
-        let eventsToExtract = sdkEventDetails.count != null ? sdkEventDetails.count : DEFAULT_EVENT_NO_TO_EXTRACT;
-        let sdkEvents = ExtractSDKEvents(events, sdkEventType, sdkEventSource, eventsToExtract);
+        let sdkEvents = ExtractSDKEvents(events, matcher);
 
         console.log("Events extracted for extension: " + name + ":");
         console.log(sdkEvents)

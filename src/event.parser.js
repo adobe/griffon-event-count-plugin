@@ -25,7 +25,7 @@ const EVENT_TYPE_HUB = "com.adobe.eventtype.hub";
 const STATE_OWNER_HUB = "com.adobe.module.eventhub";
 const defaultNoEvents = 10;
 
-export {GetSchema, GetRegisteredExtensions, ExtractRelevantEventsForSchema, ExtractSDKEvents};
+export {GetSchema, GetRegisteredExtensions, ExtractSDKEvents};
 
 function GetSchema(validationSchemaJSON, extensionName) {
   let filteredSchemas = [];
@@ -62,30 +62,28 @@ function GetRegisteredExtensions(events) {
   return null;
 };
 
-function ExtractSDKEvents(events, type, source, n = defaultNoEvents, assuranceEventType = "generic") {
-  let eventCount = n > 0 ? n : defaultNoEvents
-
+// extracts the most recent events that match the provided matcher 
+// marcher looks like: {
+//   "type" : "com.adobe.eventtype.edge", - required
+//   "source" : "com.adobe.eventsource.requestcontent", - required
+//   "name": "AEP Request Event", - optional
+//   "count" : 2 - optional, defaults to 1
+// }
+function ExtractSDKEvents(events, matcher, assuranceEventType = "generic")  {
+  const eventCount = matcher.count > 0 ? matcher.count : defaultNoEvents
+  const shouldMatchName = matcher.name != undefined && matcher.name != null && matcher.name != ""
+  
   const extractedEvents = events.filter( event =>
     equalsIgnoreCase(event.type, assuranceEventType) && 
     !ignoreEvent(event) &&
-    equalsIgnoreCase(event.payload.ACPExtensionEventType, type) && 
-    equalsIgnoreCase(event.payload.ACPExtensionEventSource, source)
+    (!shouldMatchName || equalsIgnoreCase(event.payload.ACPExtensionEventName, matcher.name)) &&
+    equalsIgnoreCase(event.payload.ACPExtensionEventType, matcher.type) && 
+    equalsIgnoreCase(event.payload.ACPExtensionEventSource, matcher.source)
   );
 
   const nExtractedEvents = extractedEvents.slice(0, eventCount);
 
-  return nExtractedEvents;
-};
-
-// extracts the most recent events that match the provided schema 
-// verifies the events match the type and source and returns the last n events that match that or last 10 events if n is not provided
-function ExtractRelevantEventsForSchema(schema, events, n = defaultNoEvents)  {
-  const lastEvents = n > 0 ? n : defaultNoEvents
-  
-  const matchingEvents = ExtractSDKEvents(events, schema.properties.payload.properties.ACPExtensionEventType.const, schema.properties.payload.properties.ACPExtensionEventSource.const)
-  const lastMatchingEvents = matchingEvents.slice(0, lastEvents)
-
-  return lastMatchingEvents
+  return nExtractedEvents
 };
 
 /*
@@ -93,7 +91,9 @@ function ExtractRelevantEventsForSchema(schema, events, n = defaultNoEvents)  {
 */
 
 function extractSharedStateEvent(events, stateOwner) {
-  const extractedEvents = ExtractSDKEvents(events, EVENT_TYPE_HUB, EVENT_SOURCE_SHARED_STATE);
+  // todo: currently retrieving 100 shared state events, we should implement support for filtering all events for a particular matcher
+  const matcher = {"type": EVENT_TYPE_HUB, "source": EVENT_SOURCE_SHARED_STATE, "count": 100}
+  const extractedEvents = ExtractSDKEvents(events, matcher);
 
   const extractedSharedStateEvents = extractedEvents.filter( event =>
     equalsIgnoreCase(event.payload.ACPExtensionEventData.stateowner, stateOwner)
