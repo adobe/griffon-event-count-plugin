@@ -152,7 +152,7 @@ async function openAiCall(chain, schemaString, eventsString) {
 
     // Call the chain providing the prompt expansions.
     const res = await chain.call({ 
-        schemaString: schemaString, eventsString: eventsSubset }
+        schemaString: schemaString, eventsString: eventsString }
     );
     
     return res;
