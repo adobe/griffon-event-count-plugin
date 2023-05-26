@@ -19,6 +19,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
+// import { ChatOpenAI } from 'langchain/chat_models/openai';
 import {
   Button,
   Flex,
@@ -28,6 +29,9 @@ import {
   View,
   lightTheme
 } from '@adobe/react-spectrum';
+// import { HumanChatMessage, SystemChatMessage } from 'langchain/dist/schema';
+// import { ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate } from 'langchain/dist/prompts';
+// import { LLMChain } from 'langchain';
 
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
@@ -45,7 +49,28 @@ const buildPrompt = (exampleEvent, promptText) => `
 `
 
 // ENTER YOUR API KEY HERE
-const apiKey = '';
+// const apiKey = '8f8717d7d1554376bf6f33cd9860191e';
+
+// const model = new ChatOpenAI({
+//   maxTokens: 1000,
+//   modelName: 'ModelGPT35Turbo',
+//   openAIApiKey: apiKey,
+//   stop: '',
+//   temperature: 0.7,
+//   topP: 0.95,
+// }, {
+//   baseOptions: {
+//     headers: {
+//       'api-key': apiKey,
+//     },
+//     params: {
+//       'api-version': '2023-03-15-preview'
+//     }
+//   },
+//   basePath: 'https://eastus.api.cognitive.microsoft.com/openai/deployments/ModelGPT35Turbo'
+// });
+
+// let chain;
 
 export default function App() {
   const [settings, setSettings] = useState({});
@@ -90,33 +115,58 @@ export default function App() {
   }, [pluginBridge]);
 
   const handleSubmit = useCallback(async () => {
-    if (!apiKey) {
-      setResponseText('Please enter your API key in src/app.jsx');
+    setResponseText('');
+    // if (!apiKey) {
+    //   setResponseText('Please enter your API key in src/app.jsx');
+    //   return;
+    // }
+
+    setLoading(true);
+
+    let response;
+    try {
+      response = await fetch('https://localhost:8443/api/question', {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: 'POST',
+        body: JSON.stringify({
+          question: promptText
+        })
+      })
+    } catch (e) {
+      console.log(e);
+      setLoading(false);
+      setResponseText('Error: ' + e.message);
       return;
     }
 
-    setLoading(true);
-    const response = await fetch('https://eastus.api.cognitive.microsoft.com/openai/deployments/ModelGPT35Turbo/completions?api-version=2022-12-01', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey
-      },
-      body: JSON.stringify({
-        prompt: buildPrompt(events[0], promptText),
-        max_tokens: 1000,
-        temperature: 0.9,
-        frequency_penalty: 0,
-        presence_penalty: 0,
-        top_p: 1,
-        stop: null
-      })
-    });
+//     const chatPrompt = ChatPromptTemplate.fromPromptMessages([
+//       SystemMessagePromptTemplate.fromTemplate(`You are an AI assitant that builds a Javascript function that validates Adobe Assurance events.
+// The function receives an events parameter that is an array of objects.
+// The function returns an object with the following properties:
+//   - message: Validation message to display in the results.
+//   - events: Array of event uuids to be reported as matched or not matched.
+//   - result: The validation result with enumerated values "matched", "not matched" or "unknown".
+// Add an "EOF" comment below the function to indicate the end of the function.  
+// `
+//       ),
+//       HumanMessagePromptTemplate.fromTemplate("{text}")
+//     ])
+//     const chainB = new LLMChain({
+//       prompt: chatPrompt,
+//       llm: model
+//     });
 
-    const json = await response.json();
+//     const resB = await chainB.call({
+//       text: promptText
+//     });
+//     console.log(resB);
+
+    const resText = await response.json();
 
     setLoading(false);
-    setResponseText(json.choices[0].text);
+    setResponseText(resText.response);
   }, [promptText]);
 
   return (

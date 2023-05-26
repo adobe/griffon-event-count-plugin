@@ -11,6 +11,34 @@ npm install
 npm run start
 ```
 
+To stand up the Embeddings/Vectors Server replace `API_KEY` and `YOUR_PRIVATE_KEY` and `YOUR_PUBLIC_CERT` in `src/server.js` (instructions to come) and run the following in another terminal:
+
+```
+npm run start:server
+```
+
+There are 2 endpoints available:
+
+### `/parser`
+
+This endpoint allows a POST request with the URL link of the GitHub Repo to parse.
+
+```json
+{
+	"url":"https://github.com/adobe/griffon-toolkit/tree/main/packages/aep-mobile",
+}
+```
+
+### `/question`
+
+This endpoint allows a POST request with the question.
+
+```json
+{
+	"question":"What is a sharedStateConfig event?",
+}
+```
+
 Plugin development can now be done within the Project Griffon UI itself. This is done by adding a plugin configuration object to local storage. The development plugin configuration is pulled from local storage and loaded along with the existing plugins. 
 You may configure it as follows:
 

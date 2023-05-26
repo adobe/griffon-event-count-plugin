@@ -12,6 +12,7 @@ cypress/videos
 .parcel-cache
 .tmp
 .nyc_output
+vectorStore
 
 // logs
 *.logg
