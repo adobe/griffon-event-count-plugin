@@ -165,8 +165,6 @@ app.post('/api/parser', async (req, res) => {
     // Load the vector store from the exisiting directory
     vectorStore = await HNSWLib.load(directory, openAIEmbeddings);
 
-    // Load the JSON file
-    const data = await fs.readFile(`${directory}docstore.json`);
     for (let i = 0; i < docs.length; i++) {
       const doc = docs[i];
       await vectorStore.addDocuments([doc]);
