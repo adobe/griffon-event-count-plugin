@@ -12,7 +12,6 @@
   "license": "ISC",
   "dependencies": {
     "@adobe/react-spectrum": "^3.26.0",
-    "faiss-node": "^0.1.1",
     "flat": "^5.0.2",
     "fs": "^0.0.1-security",
     "gpt3-tokenizer": "^1.1.5",
