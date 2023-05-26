@@ -24,19 +24,36 @@ import { GetRegisteredExtensions, GetSchema, ExtractRelevantEventsForSchema, Ext
 export { GetSDKEventsToValidate,  GetAIValidation };
 
 let extensionToTypeMap = {
-  "Analytics" : {
+  "com.adobe.module.analytics" : {
     "type" : "com.adobe.eventtype.generic.track",
     "source" : "com.adobe.eventsource.requestcontent",
     "count" : 2
   },
-
-  "Configuration" : {
+  "com.adobe.module.configuration" : {
     "type" : "com.adobe.eventtype.configuration",
+    "source" : "com.adobe.eventsource.responsecontent",
+    "count" : 1
+  },
+  "com.adobe.edge" : {
+    "type" : "com.adobe.eventtype.edge",
+    "source" : "com.adobe.eventsource.requestcontent",
+    "count" : 2
+  },
+  "com.adobe.optimize" : {
+    "type" : "com.adobe.eventtype.edge",
+    "source" : "com.adobe.eventsource.requestcontent",
+    "count" : 2
+  },
+  "com.adobe.module.lifecycle": {
+    "type" : "com.adobe.eventtype.lifecycle",
     "source" : "com.adobe.eventsource.responsecontent",
     "count" : 1
   }
 }
 
+const DEFAULT_EVENT_NO_TO_EXTRACT = 1;
+
+// Returns a dictionary with extension name as key and array of events to validate as value
 function GetSDKEventsToValidate(events) {
     let extensionsToSDKEventsMap = new Map();
     if (events == undefined || events.length == 0) {
@@ -45,24 +62,23 @@ function GetSDKEventsToValidate(events) {
     }
   
     let registeredExtensions = GetRegisteredExtensions(events)
-    //console.log(registeredExtensions);
+    console.log(registeredExtensions);
 
     for (var name of Object.keys(registeredExtensions)) {
-        let extensionFriendlyName = registeredExtensions[name].friendlyName;
-        //console.log(extensionFriendlyName);
-
-        let sdkEventDetails = extensionToTypeMap[extensionFriendlyName];
-        if(sdkEventDetails == null) {
+        let sdkEventDetails = extensionToTypeMap[name];
+        if(sdkEventDetails == null || sdkEventDetails == undefined) {
           continue;
         }
 
         let sdkEventType = sdkEventDetails.type;
         let sdkEventSource = sdkEventDetails.source;
-        let eventsToExtract = sdkEventDetails.count != null ? sdkEventDetails.count : 2;
+        let eventsToExtract = sdkEventDetails.count != null ? sdkEventDetails.count : DEFAULT_EVENT_NO_TO_EXTRACT;
         let sdkEvents = ExtractSDKEvents(events, sdkEventType, sdkEventSource, eventsToExtract);
 
-        extensionsToSDKEventsMap.set(extensionFriendlyName, sdkEvents)
-        //console.log(extensionsToSDKEventsMap)
+        console.log("Events extracted for extension: " + name + ":");
+        console.log(sdkEvents)
+
+        extensionsToSDKEventsMap.set(name, sdkEvents)
     }
 
     return extensionsToSDKEventsMap;

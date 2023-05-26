@@ -75,6 +75,8 @@ export default function App() {
 
   const handleAutoValidate = useCallback(async (events) => {
     console.log("handleAutoValidate")
+    var resultsForAllExtensions = ""
+    setResponseText(resultsForAllExtensions)
   
     setLoading(true);
 
@@ -82,27 +84,35 @@ export default function App() {
     const vectorStore = await createVectorStore()
 
     const extensionToEventsMap = GetSDKEventsToValidate(events);
+    var firstValidation = true;
     for (const [extensionName, sdkEvents] of extensionToEventsMap) { 
-      //console.log(extensionName);
-      //console.log(JSON.stringify(sdkEvents));
       let result = await GetAIValidation(chain, vectorStore, sdkEvents);
-      let resString  = JSON.stringify(result);
+      var resultForExt = ""
+      if (!firstValidation) {
+        resultForExt += "\n-------------------------------------------------\n"
+      }
+      resultForExt += "Validation results for the " + extensionName + " extension:\n"
+      resultForExt += JSON.stringify(result);
 
-      setResponseText(responseText + resString);
+      resultsForAllExtensions += resultForExt
+      setResponseText(resultsForAllExtensions)
+
+      firstValidation = false;
     }
+
     setLoading(false);
   }, [promptText]);
 
   return (
     <SpectrumProvider colorScheme="light" theme={lightTheme}>
       <View width="size-6000">
-        <Flex alignItems="end" justifyContent="space-between" width="100%">
-          <TextArea
+        {/* <Flex alignItems="end" justifyContent="space-between" width="100%"> */}
+          {/* <TextArea
             label="Prompt"
             onChange={setPromptText}
             width="size-5000"
             value={promptText}
-          />
+          /> */}
           <Button
             onPress={() => handleAutoValidate(events)}
             variant="cta"
@@ -110,7 +120,7 @@ export default function App() {
             Auto-validate
           </Button>
           {loading && <ProgressCircle isIndeterminate />}
-        </Flex>
+        {/* </Flex> */}
         <TextArea
           height="size-6000"
           isReadOnly

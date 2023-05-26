@@ -39,8 +39,9 @@ const promptTemplate = "Given the following JSON schema definition, can you veri
 export {setupModelChain, createVectorStore, submitCompletion};
 
 async function setupModelChain() {
-    if (!API_KEY) {
-        return 'Please enter your API key in src/openai.handler.jsx';
+    if (API_KEY === '') {
+        console.log("Please enter your API key in src/openai.handler.js")
+        return;
     }
 
     // Create prompt template
@@ -62,7 +63,7 @@ async function setupModelChain() {
         frequencyPenalty: 0,
         presencePenalty: 0,
         maxTokens: 2000,
-        stop: ['"""', "```", "###"]
+        stop: ['"""', "```", "###", "Note"]
       },
       {
         baseOptions: {
@@ -81,21 +82,33 @@ async function setupModelChain() {
     return chain
 }
 
-async function submitCompletion(chain, vectorStore, events, promptText) {
+async function submitCompletion(chain, vectorStore, events) {
+    if (API_KEY === '') {
+        return 'Please enter your API key in src/openai.handler.js';
+    }
+
     if (events.length == 0) {
         return "";
     }
+    
+    console.log("submitCompletion")
 
-    // Search for the most similar document (schema)
-    const schemaResult = await vectorStore.similaritySearch(JSON.stringify(events[0]), 1);
-    console.log("Selected schema:" + JSON.stringify(schemaResult));
+    // Search for the most similar document (schema) for event
+    const eventForSchemaSelection = events[0]
+    const eventForSchemaSelectionStr = JSON.stringify(eventForSchemaSelection)
+    const schemaResult = await vectorStore.similaritySearch(eventForSchemaSelectionStr, 1);
+    console.log(`Selected schema for event ${eventForSchemaSelection.payload.ACPExtensionEventType} ${eventForSchemaSelection.payload.ACPExtensionEventSource}: ${eventForSchemaSelectionStr}`);
 
-     // Generate subset of events that can be supplied in the model prompt for validation
-     eventsSubset = getEventsForCompletion(schemaResult, events)
+    // Generate subset of events that can be supplied in the model prompt for validation
+    const schemaResultJSON = JSON.parse(JSON.stringify(schemaResult));
+    const schemaJSON = JSON.parse(schemaResultJSON[0].pageContent);
+    console.log(schemaJSON)
+
+    const eventsSubset = getEventsForCompletion(schemaJSON, events)
 
     // Call the chain providing the prompt expansions.
     const res = await chain.call({ 
-        schemaString: schemaResult, eventsString: eventsSubset }
+        schemaString: schemaResult, eventsString: JSON.stringify(JSON.parse(eventsSubset)) }
     );
 
     console.log(res);
@@ -149,6 +162,11 @@ async function loadDoc(file) {
 
 // Create a Memory vector store for embeddings
 async function createVectorStore() {
+    if (API_KEY === '') {
+        console.log('Please enter your API key in src/openai.handler.js');
+        return;
+    }
+
     // Read event schemas from json file and convert those to documents using JSONLoader
     const documents = await loadDoc(validationSchemasJSON)
     console.log("Created schema documents.")
