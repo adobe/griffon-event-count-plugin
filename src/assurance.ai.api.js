@@ -17,7 +17,7 @@
  * from Adobe Systems Incorporated.
  * ************************************************************************
  */
-import { SubmitCompletion } from './openai.handler';
+import { submitCompletion } from './openai.handler';
 import { GetRegisteredExtensions, GetSchema, ExtractRelevantEventsForSchema, ExtractSDKEvents} from './event.parser';
 //import validationSchemaJSON from './data/validation.schemas.json';
 
@@ -69,6 +69,7 @@ function GetSDKEventsToValidate(events) {
   };
 
 
-async function GetAIValidation(sdkEvents) {
-    return await SubmitCompletion(sdkEvents);
+async function GetAIValidation(chain, vectorStore, sdkEvents) {
+    const res = await submitCompletion(chain, vectorStore, sdkEvents);
+    return res
 };

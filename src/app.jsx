@@ -29,6 +29,7 @@ import {
   lightTheme
 } from '@adobe/react-spectrum';
 import { GetSDKEventsToValidate, GetAIValidation}  from './assurance.ai.api';
+import { setupModelChain, createVectorStore } from './openai.handler';
 
 export default function App() {
   const [settings, setSettings] = useState({});
@@ -77,11 +78,14 @@ export default function App() {
   
     setLoading(true);
 
+    const chain = await setupModelChain()
+    const vectorStore = await createVectorStore()
+
     const extensionToEventsMap = GetSDKEventsToValidate(events);
     for (const [extensionName, sdkEvents] of extensionToEventsMap) { 
       //console.log(extensionName);
-      //console.log(sdkEvents);
-      let result = await GetAIValidation(sdkEvents);
+      //console.log(JSON.stringify(sdkEvents));
+      let result = await GetAIValidation(chain, vectorStore, sdkEvents);
       let resString  = JSON.stringify(result);
 
       setResponseText(responseText + resString);
