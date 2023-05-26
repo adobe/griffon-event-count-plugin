@@ -121,7 +121,7 @@ async function submitCompletion(chain, vectorStore, events, nlSchema = false, nl
     console.log(`Selected schema for event ${eventForSchemaSelection.payload.ACPExtensionEventType} ${eventForSchemaSelection.payload.ACPExtensionEventSource}: ${eventForSchemaSelectionStr}`);
 
     // Generate subset of events that can be supplied in the model prompt for validation
-    eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);
+    let eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);
 
     let schemaDoc = schemaResult[0].pageContent;
     
@@ -152,7 +152,7 @@ async function openAiCall(chain, schemaString, eventsString) {
 
     // Call the chain providing the prompt expansions.
     const res = await chain.call({ 
-        schemaString: schemaString, eventsString: eventsSubset }
+        schemaString: schemaString, eventsString: eventsString }
     );
     
     return res;
