@@ -19,7 +19,6 @@
  */
 import { submitCompletion } from './openai.handler';
 import { GetRegisteredExtensions, GetSchema, ExtractRelevantEventsForSchema, ExtractSDKEvents} from './event.parser';
-//import validationSchemaJSON from './data/validation.schemas.json';
 
 export { GetSDKEventsToValidate,  GetAIValidation };
 
@@ -86,6 +85,8 @@ function GetSDKEventsToValidate(events) {
 
 
 async function GetAIValidation(chain, vectorStore, sdkEvents) {
-    const res = await submitCompletion(chain, vectorStore, sdkEvents);
-    return res
+  //const res = await submitCompletion(chain, vectorStore, sdkEvents, true, true); // NaturalLanguage Schema, NaturalLanguage Event
+  //const res = await submitCompletion(chain, vectorStore, sdkEvents, true, false); // NaturalLanguage Schema, JSON Event
+  const res = await submitCompletion(chain, vectorStore, sdkEvents); // JSON Schema, JSON Event
+  return res
 };

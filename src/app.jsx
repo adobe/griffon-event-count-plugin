@@ -92,16 +92,17 @@ export default function App() {
         resultForExt += "\n-------------------------------------------------\n"
       }
       resultForExt += "Validation results for the " + extensionName + " extension:\n"
-      resultForExt += JSON.stringify(result);
+      resultForExt += result + "\n\n";
 
       resultsForAllExtensions += resultForExt
       setResponseText(resultsForAllExtensions)
 
       firstValidation = false;
+      console.log(resultForExt);
     }
 
     setLoading(false);
-  }, [promptText]);
+  }, [promptText, responseText]);
 
   return (
     <SpectrumProvider colorScheme="light" theme={lightTheme}>

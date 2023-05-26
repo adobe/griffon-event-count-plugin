@@ -6,6 +6,7 @@ import { JSONLoader } from "langchain/document_loaders/fs/json";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
 import validationSchemasJSON from './data/validation.schemas.json';
+import { GetTextForEvent, GetTextForEventSchema } from './event.translator';
 
 const API_KEY = ''; // ENTER YOUR API KEY HERE
 const COMPLETION_INSTANCE_NAME = 'eastus.api.cognitive.microsoft.com'
@@ -34,7 +35,27 @@ const buildPrompt = (exampleEvent, promptText) => `
   Generate the validation function:
 `
 
-const promptTemplate = "Given the following JSON schema definition, can you verify whether the input events are valid.\nSCHEMA:\n{schemaString}\n\n\nEVENTS:\n{eventsString}\nVerify the input events and provide your answer in the JSON format with the following keys for each event in the array:\nresult:<enum value PASSED or FAIL>,reason:<failure reason or empty string if validation passed>,uuid:<event uuid>."
+// const promptTemplate1 = "Given the following JSON schema definition, can you verify whether the input events are valid.\nSCHEMA:\n{schemaString}\n\n\nEVENTS:\n{eventsString}\nVerify the input events and provide your answer in the JSON format with the following keys for each event in the array:\nresult:<enum value PASSED or FAIL>,reason:<failure reason or empty string if validation passed>,uuid:<event uuid>."
+// const promptTemplate2 = `
+// You are a data validator bot. Validate the ACP events 
+// using <SCHEMA> definition, verify the input <EVENTS> are valid.
+// \n<SCHEMA>:\n{schemaString}\n\n\<EVENTS>:\n{eventsString}\n
+// Provide the validation results in a JSON format
+// \n
+// result:<enum value PASSED or FAIL>,reason:<failure reason or empty string if validation passed>,uuid:<event uuid>.`
+
+const promptTemplate = "Your task is to perform the following actions:\
+1 - Use the provided event schema definition delimited by ## for schema validation task.\
+2 - Validate the provided array of events also delimited by ##.\
+3 - Output ONLY an array of json objects summarizing the validation result for each event and containing the keys: uuid, result, reason.\n\
+Use the following format for the output.\
+uuid: <event uuid>\
+result: <enum value FAIL or PASSED>\
+reason: <if schema validation result was FAIL, an array of comma-separated failure reason strings, else empty array.\
+Each failure reason should clearly report any missing required properties or incorrect property value type.>\n\n\
+EVENT SCHEMA DEFINITION: ##{schemaString}##\n\
+EVENTS: ##{eventsString}##\n\n\
+OUTPUT: \n"
 
 export {setupModelChain, createVectorStore, submitCompletion};
 
@@ -82,11 +103,11 @@ async function setupModelChain() {
     return chain
 }
 
-async function submitCompletion(chain, vectorStore, events) {
+async function submitCompletion(chain, vectorStore, events, nlSchema = false, nlEvents = false) {
     if (API_KEY === '') {
         return 'Please enter your API key in src/openai.handler.js';
     }
-
+    
     if (events.length == 0) {
         return "";
     }
@@ -100,22 +121,44 @@ async function submitCompletion(chain, vectorStore, events) {
     console.log(`Selected schema for event ${eventForSchemaSelection.payload.ACPExtensionEventType} ${eventForSchemaSelection.payload.ACPExtensionEventSource}: ${eventForSchemaSelectionStr}`);
 
     // Generate subset of events that can be supplied in the model prompt for validation
-    const schemaResultJSON = JSON.parse(JSON.stringify(schemaResult));
-    const schemaJSON = JSON.parse(schemaResultJSON[0].pageContent);
-    console.log(schemaJSON)
+    eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);
 
-    const eventsSubset = getEventsForCompletion(schemaJSON, events)
-
-    // Call the chain providing the prompt expansions.
-    const res = await chain.call({ 
-        schemaString: schemaResult, eventsString: JSON.stringify(JSON.parse(eventsSubset)) }
-    );
-
+    let schemaDoc = schemaResult[0].pageContent;
+    
+    var schemaString = nlSchema ? GetTextForEventSchema(schemaDoc) : schemaDoc;
+   
+    let eventsString = eventsSubset;
+    
+    let res = await openAiCall(chain, schemaString, eventsString)
     console.log(res);
     return res.text;
 }
 
-function getEventsForCompletion(schema, events) {
+async function openAiCall(chain, schemaString, eventsString) {
+    // Print the prompt
+    console.log(`Your task is to perform the following actions:\
+    1 - Use the provided event schema definition delimited by ## for schema validation task.\
+    2 - Validate the provided array of events also delimited by ##.\
+    3 - Output ONLY an array of json objects summarizing the validation result for each event and containing the keys: uuid, result, reason.\n\
+    Use the following format for the output.\
+    uuid: <event uuid>\
+    result: <enum value FAIL or PASSED>\
+    reason: <if schema validation result was FAIL, an array of comma-separated failure reason strings, else empty array.\
+    Each failure reason should clearly report any missing required properties or incorrect property value type.>\n\n\
+    EVENT SCHEMA DEFINITION: ##${schemaString}##\n\
+    EVENTS: ##${eventsString}##\n\n\
+    OUTPUT: \n`
+    )
+
+    // Call the chain providing the prompt expansions.
+    const res = await chain.call({ 
+        schemaString: schemaString, eventsString: eventsSubset }
+    );
+    
+    return res;
+}
+
+function getEventsForCompletion(schema, events, nlEvents = false) {
     const schemaString = JSON.stringify(schema);
     const schemaTokensCount = countTokens(schemaString);
     console.log("schemaTokensCount: " + schemaTokensCount);
@@ -124,6 +167,7 @@ function getEventsForCompletion(schema, events) {
     console.log("promptTemplateTokensCount: " + promptTemplateTokensCount);
 
     const eventsArr = []
+    var eventsNL = ""
     var totalTokensCount = schemaTokensCount + promptTemplateTokensCount;
     for (const evt of events) {
         const eventTokensCount = countTokens(JSON.stringify(evt));
@@ -132,9 +176,12 @@ function getEventsForCompletion(schema, events) {
         }
         totalTokensCount = totalTokensCount + eventTokensCount
         console.log("totalTokensCount: " + totalTokensCount);
+
+        eventsNL += ("\n" + GetTextForEvent(evt));
+        
         eventsArr.push(evt)
     }
-    return JSON.stringify(eventsArr)   
+    return nlEvents ? eventsNL : JSON.stringify(eventsArr);   
 }
 
 //Returns the number of tokens in a text string
