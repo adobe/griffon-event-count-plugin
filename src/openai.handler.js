@@ -5,6 +5,7 @@ import { LLMChain } from "langchain/chains";
 import { JSONLoader } from "langchain/document_loaders/fs/json";
 import { FaissStore } from "langchain/vectorstores/faiss";
 import { OpenAIEmbeddings } from "langchain/embeddings/openai";
+import validationSchemasJSON from './data/validation.schemas.json';
 
 const API_KEY = ''; // ENTER YOUR API KEY HERE
 const COMPLETION_INSTANCE_NAME = 'eastus.api.cognitive.microsoft.com'
@@ -13,6 +14,10 @@ const COMPLETION_API_VERSION = '2022-12-01'
 const COMPLETION_BASE_PATH = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${COMPLETION_MODEL}`
 // const COMPLETION_URL = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${COMPLETION_MODEL}/completions?api-version=${COMPLETION_API_VERSION}`
 const MAX_INPUT_TOKENS_LENGTH = 3500;
+
+const EMBEDDINGS_MODEL = 'text-embedding-ada-002'
+const EMBEDDINGS_API_VERSION = '2023-03-15-preview'
+const EMBEDDINGS_BASE_PATH = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${EMBEDDINGS_MODEL}`
 
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
@@ -39,15 +44,17 @@ async function SubmitCompletion(events, promptText) {
     }
 
     // Read event schemas from json file and convert those to documents using JSONLoader
-    const documents = await loadDoc("src/data/validation.schemas.json")
-    console.log(documents)
+    const documents = await loadDoc(validationSchemasJSON)
+    console.log("Created schema documents.")
+    // documents.forEach(element => console.log(JSON.stringify(element.pageContent)))
    
     // Create vector store from the documents 
     const faissVectorStore = await createVectorStore(documents)
+    console.log("Created FAISS vector store.");
 
     // Search for the most similar document (schema)
     const schemaResult = await faissVectorStore.similaritySearch(events[0], 1);
-    console.log(schemaResult);
+    console.log("Selected schema:" + schemaResult);
 
      // Generate subset of events that can be supplied in the model prompt for validation
      eventsSubset = getEventsForCompletion(schemaResult, events)
@@ -107,16 +114,16 @@ function getEventsForCompletion(schema, events) {
 
     const eventsArr = []
     var totalTokensCount = schemaTokensCount + promptTemplateTokensCount;
-    for (evt in events) {
+    events.array.forEach(evt => {
         const eventString = JSON.stringify(evt);
         const eventTokensCount = countTokens(eventString);
         if (totalTokensCount + eventTokensCount > MAX_INPUT_TOKENS_LENGTH) {
-            break;
+            return;
         }
         totalTokensCount = totalTokensCount + eventTokensCount
         console.log("totalTokensCount: " + totalTokensCount);
         eventsArr.push(evt)
-    }
+    });
     return JSON.stringify(eventsArr)   
 }
 
@@ -133,9 +140,13 @@ function countTokens(input) {
 
 // Load JSON file and generate documents
 async function loadDoc(file) {
-    const loader = new JSONLoader(file)
-    const docs = await loader.load()
-    console.log({ docs });
+    const jsonArr = file.map(e => JSON.stringify(e))
+    const schemas = {
+        "schemas": jsonArr
+    }
+
+    const loader = new JSONLoader(new Blob([JSON.stringify(schemas)], {type: "application/json"}))
+    const docs = await loader.load();
     return docs;
 }
 
@@ -143,7 +154,22 @@ async function loadDoc(file) {
 async function createVectorStore(documents) {
     const faissVectorStore = await FaissStore.fromDocuments(
         documents,
-        new OpenAIEmbeddings()
+        new OpenAIEmbeddings({
+            modelName: EMBEDDINGS_MODEL,
+            openAIApiKey: API_KEY,
+            batchSize: 1
+        },
+        {
+            baseOptions: {
+                headers: {
+                    'api-key': API_KEY,
+                },
+                params: {
+                    'api-version': EMBEDDINGS_API_VERSION
+                }
+            },
+            basePath: EMBEDDINGS_BASE_PATH
+        })
       );
     return faissVectorStore;
 }
