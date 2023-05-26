@@ -29,13 +29,13 @@ const { OpenAI } = require('langchain/llms/openai');
 const { LLMChain, VectorDBQAChain } = require('langchain/chains');
 const { GithubRepoLoader } = require('langchain/document_loaders/web/github');
 
-const API_KEY = '<YOUR API KEY>';
+const API_KEY = '';
 const COMPLETION_API_VERSION = '2022-12-01';
 const COMPLETION_BASE_PATH = 'https://eastus.api.cognitive.microsoft.com/openai/deployments/ModelGPT35Turbo';
 const COMPLETION_MODEL = 'ModelGPT35Turbo';
 const EMBEDDING_API_VERSION = '2023-05-15';
 const EMBEDDING_BASE_PATH = 'https://eastus.api.cognitive.microsoft.com/openai/deployments/text-embedding-ada-002';
-const EMBEDDING_MODEL = 'text-embedding-ada-002'
+const EMBEDDING_MODEL = 'text-embedding-ada-002';
 
 // Set up Express app
 const app = express();
@@ -56,8 +56,8 @@ const openAIEmbeddings = new OpenAIEmbeddings({
   topP: 1,
   frequencyPenalty: 0,
   presencePenalty: 0,
-  maxTokens: 2000,
-  stop: ['"""', '```', '###', '//EOF', '// EOF']
+  maxTokens: 6000,
+  stop: ['EOF']
 },
 {
   baseOptions: {
@@ -81,12 +81,12 @@ app.post('/api/question', async (req, res) => {
   const llm = new OpenAI({
     modelName: COMPLETION_MODEL,
     openAIApiKey: API_KEY,
-    temperature: 0.2,
+    temperature: 0.9,
     topP: 1,
     frequencyPenalty: 0,
     presencePenalty: 0,
     maxTokens: 2000,
-    stop: ['"""', '```', '###']
+    stop: ['EOF']
   },
   {
     baseOptions: {
@@ -111,27 +111,48 @@ app.post('/api/question', async (req, res) => {
     vectorStore = null
   }
 
+  const template = `
+  A Validation Plugin is a scoped javascript function. The function takes in as its parameters events which is an array of Objects.
+  Some event objects will have the following data structure:
+  {eventInfo}\n
+  Use the uuid value as the event identifier.
+  Find events using values from ACPExtensionEventSource and ACPExtensionEventType.
+  The validation function returns an object comprising of the following:
+    message- Validation message to display in the results.
+    events- Array of event uuids to be reported as matched or not matched.
+    result- The validation result with enumerated values "matched", "not matched" or "unknown"'
+  The validation function should validate the following:
+  {promptText}
+  Comment "EOF" after each function to indicate the end of the function.
+  Generate the validation function:
+`;
+  const prompt = new PromptTemplate({
+    template,
+    inputVariables: ['eventInfo', 'promptText']
+  });
+  const chain = new LLMChain({ llm, prompt });
+
   let response;
   try {
     if (vectorStore) {
-      // Load the Q&A map reduce chain
-      const chain = VectorDBQAChain.fromLLM(llm, vectorStore)
+      // search the documents for any relevant event information
+      const eventDocs = await vectorStore.similaritySearch(question, 1);
+
       response = await chain.call({
-        query: question,
-      })
+        eventInfo: eventDocs[0].pageContent,
+        promptText: question
+      });
+
+      console.log(response);
 
       // Return the response to the user
       res.json({ response: response.text })
     } else {
       // We don't have a vector store yet, so we'll just use a template
-      const template =
-        "Your are a kind AI Assistant. Try to answer the following question: {question} If you don't know the answer, just say \"Hmm, I'm not sure.\" Don't try to make up an answer."
-      const prompt = new PromptTemplate({
-        template: template,
-        inputVariables: ['question'],
-      })
-      const chain = new LLMChain({ llm: llm, prompt: prompt })
-      response = await chain.call({ question: question })
+      response = await chain.call({
+        eventInfo: '',
+        promptText: question
+      });
 
       // Return the response to the user
       res.json({ response: response.text })
@@ -188,8 +209,8 @@ app.post('/api/parser', async (req, res) => {
   }
 });
 
-const privateKey = fs.readFileSync('<YOUR_PRIVATE_KEY>', 'utf8');
-const certificate = fs.readFileSync('<YOUR_PUBLIC_CERT>', 'utf8');
+const privateKey = fs.readFileSync('', 'utf8');
+const certificate = fs.readFileSync('', 'utf8');
 
 // Create HTTP server
 https.createServer({ key: privateKey, cert: certificate }, app).listen(8443);
