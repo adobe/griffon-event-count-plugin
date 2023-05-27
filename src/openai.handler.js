@@ -20,6 +20,8 @@ const EMBEDDINGS_MODEL = 'text-embedding-ada-002'
 const EMBEDDINGS_API_VERSION = '2023-03-15-preview'
 const EMBEDDINGS_BASE_PATH = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${EMBEDDINGS_MODEL}`
 
+const SIMILARITY_THRESHOLD = '0.6'
+
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
   The function returns an object comprising of the following:
@@ -117,11 +119,18 @@ async function submitCompletion(chain, vectorStore, events, nlSchema = false, nl
     // Search for the most similar document (schema) for event
     const eventForSchemaSelection = events[0]
     const eventForSchemaSelectionStr = JSON.stringify(eventForSchemaSelection)
-    const schemaResult = await vectorStore.similaritySearch(eventForSchemaSelectionStr, 1);
-    let schemaDoc = schemaResult[0].pageContent;
+    const schemaResult = await vectorStore.similaritySearchWithScore(eventForSchemaSelectionStr, 1);
+    const matchedSchema = schemaResult[0]
+    const schemaDoc = matchedSchema[0].pageContent;
+    const schemaMatchScore = matchedSchema[1];
     var schemaString = nlSchema ? GetTextForEventSchema(schemaDoc) : schemaDoc;
 
-    console.log(`Selected schema for event ${eventForSchemaSelection.payload.ACPExtensionEventType} ${eventForSchemaSelection.payload.ACPExtensionEventSource}: ${schemaString}`);
+    console.log(`Selected schema for ${eventForSchemaSelection.payload.ACPExtensionEventName} event <${eventForSchemaSelection.payload.ACPExtensionEventType}:${eventForSchemaSelection.payload.ACPExtensionEventSource}> is ${schemaDoc} with score ${schemaMatchScore}`);
+    const schemaDocParsed = JSON.parse(schemaDoc)
+    if (schemaMatchScore < SIMILARITY_THRESHOLD || 
+        (schemaDocParsed.properties.payload.properties.ACPExtensionEventType.const != eventForSchemaSelection.payload.ACPExtensionEventType || schemaDocParsed.properties.payload.properties.ACPExtensionEventSource.const != eventForSchemaSelection.payload.ACPExtensionEventSource)) {
+        return 'No good schema match found! Not prompting the model to validate the events!'
+    }
 
     // Generate subset of events that can be supplied in the model prompt for validation
     let eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);    
