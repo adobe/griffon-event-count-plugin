@@ -111,7 +111,7 @@ async function submitCompletion(chain, vectorStore, events, nlSchema = false, nl
     }
     
     if (events.length == 0) {
-        return "";
+        return 'No events found! Not prompting the model to validate the events!';
     }
     
     console.log("submitCompletion")

@@ -63,18 +63,18 @@ function GetSDKEventsToValidate(events) {
     let registeredExtensions = GetRegisteredExtensions(events)
     console.log(registeredExtensions);
 
-    for (var name of Object.keys(registeredExtensions)) {
-        let matcher = extensionToTypeMap[name];
+    for (var extensionName of Object.keys(registeredExtensions)) {
+        let matcher = extensionToTypeMap[extensionName];
         if(matcher == null || matcher == undefined) {
           continue;
         }
 
         let sdkEvents = ExtractSDKEvents(events, matcher);
 
-        console.log("Events extracted for extension: " + name + ":");
+        console.log(`${sdkEvents.length} events extracted for ${extensionName} extension: `);
         console.log(sdkEvents)
 
-        extensionsToSDKEventsMap.set(name, sdkEvents)
+        extensionsToSDKEventsMap.set(extensionName, sdkEvents)
     }
 
     return extensionsToSDKEventsMap;
