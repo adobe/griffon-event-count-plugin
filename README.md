@@ -1,7 +1,11 @@
 # griffon-event-count-plugin
 Example project of how to build a Project Griffon View Plugin
 
+## Prerequisites
+- Node v18 and above (check [nvm](https://github.com/nvm-sh/nvm) for switching between versions)
+
 ## Getting Started
+
 Plugins are registered via the [Plugin Bridge](https://github.com/adobe/griffon-plugin-bridge). A brief description of how to implement the bridge in a plugin is provided in the [wiki](https://github.com/adobe/griffon-event-count-plugin/wiki)
 
 Plugins in Project Griffon are hosted on a static server and are loaded in the UI as an iframe. We'll use [Parcel](https://parceljs.org/) to host our plugin locally.
