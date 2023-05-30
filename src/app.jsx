@@ -29,7 +29,7 @@ import {
   lightTheme
 } from '@adobe/react-spectrum';
 import { GetSDKEventsToValidate, GetAIValidation}  from './assurance.ai.api';
-import { setupModelChain, createVectorStore } from './openai.handler';
+import { setupLLMChain, createVectorStore } from './openai.handler';
 
 export default function App() {
   const [settings, setSettings] = useState({});
@@ -41,7 +41,9 @@ export default function App() {
   const [responseText, setResponseText] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [config, setConfig] = useState({});
   const pluginBridge = window.pluginBridge;
+  var configLoaded = false;
 
   useEffect(() => {
     pluginBridge?.register({
@@ -71,57 +73,70 @@ export default function App() {
         setValidation(validation);
       }
     })
-  }, [pluginBridge]);
+
+    async function setup(configLoaded) {
+      if (!configLoaded) {
+        const llmChain = await setupLLMChain();
+        const vectorStore = await createVectorStore();
+        setConfig({"llmChain": llmChain, "vectorStore": vectorStore});
+        configLoaded = true;
+      }
+    }
+    setup(configLoaded);
+
+  }, [pluginBridge, configLoaded]);
 
   const handleAutoValidate = useCallback(async (events) => {
-    console.log("handleAutoValidate")
-    var resultsForAllExtensions = ""
-    setResponseText(resultsForAllExtensions)
+    console.log("handleAutoValidate");
+    var resultsForAllExtensions = "";
+    setResponseText(resultsForAllExtensions);
   
     setLoading(true);
-
-    const chain = await setupModelChain()
-    const vectorStore = await createVectorStore()
-
-    const extensionToEventsMap = GetSDKEventsToValidate(events);
-    var firstValidation = true;
-    for (const [extensionName, sdkEvents] of extensionToEventsMap) { 
-      let result = await GetAIValidation(chain, vectorStore, sdkEvents);
-      var resultForExt = ""
-      if (!firstValidation) {
-        resultForExt += "\n-------------------------------------------------\n"
+    if (promptText !== "") {
+      let result = await GetAIValidation(config.llmChain, config.vectorStore, null, promptText);
+      resultsForAllExtensions += result;
+      setResponseText(resultsForAllExtensions);
+      console.log(result);
+    } else {
+      const extensionToEventsMap = GetSDKEventsToValidate(events);
+      var firstValidation = true;
+      for (const [extensionName, sdkEvents] of extensionToEventsMap) { 
+          let result = await GetAIValidation(config.llmChain, config.vectorStore, sdkEvents, promptText);
+          var resultForExt = "";
+          if (!firstValidation) {
+            resultForExt += "\n-------------------------------------------------\n"
+          }
+          resultForExt += "Validation results for the " + extensionName + " extension:\n";
+          resultForExt += result + "\n\n";
+    
+          resultsForAllExtensions += resultForExt;
+          setResponseText(resultsForAllExtensions);
+    
+          firstValidation = false;
+          console.log(resultForExt);
       }
-      resultForExt += "Validation results for the " + extensionName + " extension:\n"
-      resultForExt += result + "\n\n";
-
-      resultsForAllExtensions += resultForExt
-      setResponseText(resultsForAllExtensions)
-
-      firstValidation = false;
-      console.log(resultForExt);
     }
-
     setLoading(false);
-  }, [promptText, responseText]);
+  }, [promptText, responseText, config]);
 
   return (
     <SpectrumProvider colorScheme="light" theme={lightTheme}>
       <View width="size-6000">
-        {/* <Flex alignItems="end" justifyContent="space-between" width="100%"> */}
-          {/* <TextArea
+        <Flex alignItems="end" justifyContent="space-between" width="100%">
+          <TextArea
             label="Prompt"
             onChange={setPromptText}
             width="size-5000"
             value={promptText}
-          /> */}
+          />
           <Button
             onPress={() => handleAutoValidate(events)}
             variant="cta"
           >
-            Auto-validate
+            Validate
           </Button>
           {loading && <ProgressCircle isIndeterminate />}
-        {/* </Flex> */}
+        </Flex>
         <TextArea
           height="size-6000"
           isReadOnly

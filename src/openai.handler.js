@@ -20,7 +20,7 @@ const EMBEDDINGS_MODEL = 'text-embedding-ada-002'
 const EMBEDDINGS_API_VERSION = '2023-03-15-preview'
 const EMBEDDINGS_BASE_PATH = `https://eastus.api.cognitive.microsoft.com/openai/deployments/${EMBEDDINGS_MODEL}`
 
-const SIMILARITY_THRESHOLD = '0.6'
+const SIMILARITY_THRESHOLD = '0.8'
 
 const buildPrompt = (exampleEvent, promptText) => `
   A Validation Plugin is a single javascript function. The function takes in as its parameters events which is an array of Objects.
@@ -59,9 +59,9 @@ EVENT SCHEMA DEFINITION: ##{schemaString}##\n\
 EVENTS: ##{eventsString}##\n\n\
 OUTPUT: \n"
 
-export {setupModelChain, createVectorStore, submitCompletion};
+export {setupLLMChain, createVectorStore, submitCompletion};
 
-async function setupModelChain() {
+async function setupLLMChain() {
     if (API_KEY === '') {
         console.log("Please enter your API key in src/openai.handler.js")
         return;
@@ -85,7 +85,7 @@ async function setupModelChain() {
         topP: 1,
         frequencyPenalty: 0,
         presencePenalty: 0,
-        maxTokens: 2000,
+        maxTokens: 500,
         stop: ['"""', "```", "###", "Note"]
       },
       {
@@ -101,42 +101,47 @@ async function setupModelChain() {
         });
  
     // Create a chain using model and prompt
-    const chain = new LLMChain({ llm: model, prompt: prompt });
-    return chain
+    const llmChain = new LLMChain({ llm: model, prompt: prompt });
+    return llmChain;
 }
 
-async function submitCompletion(chain, vectorStore, events, nlSchema = false, nlEvents = false) {
+async function submitCompletion(llmChain, vectorStore, events, promptText, nlSchema = false, nlEvents = false) {
     if (API_KEY === '') {
         return 'Please enter your API key in src/openai.handler.js';
     }
-    
-    if (events.length == 0) {
+
+    var eventsToValidate;
+    if (promptText !== "") {
+        eventsToValidate = [JSON.parse(promptText.trim())];
+        console.log("prompt:" + JSON.stringify(eventsToValidate));
+    } else if (events.length != 0) {
+        eventsToValidate = events;
+    } else {
         return 'No events found! Not prompting the model to validate the events!';
     }
     
     console.log("submitCompletion")
 
     // Search for the most similar document (schema) for event
-    const eventForSchemaSelection = events[0]
-    const eventForSchemaSelectionStr = JSON.stringify(eventForSchemaSelection)
+    const eventForSchemaSelection = eventsToValidate[0];
+    const eventForSchemaSelectionStr = JSON.stringify(eventForSchemaSelection);
     const schemaResult = await vectorStore.similaritySearchWithScore(eventForSchemaSelectionStr, 1);
-    const matchedSchema = schemaResult[0]
+    const matchedSchema = schemaResult[0];
     const schemaDoc = matchedSchema[0].pageContent;
     const schemaMatchScore = matchedSchema[1];
     var schemaString = nlSchema ? GetTextForEventSchema(schemaDoc) : schemaDoc;
 
     console.log(`Selected schema for ${eventForSchemaSelection.payload.ACPExtensionEventName} event <${eventForSchemaSelection.payload.ACPExtensionEventType}:${eventForSchemaSelection.payload.ACPExtensionEventSource}> is ${schemaDoc} with score ${schemaMatchScore}`);
-    const schemaDocParsed = JSON.parse(schemaDoc)
+    const schemaDocParsed = JSON.parse(schemaDoc);
     if (schemaMatchScore < SIMILARITY_THRESHOLD || 
         (schemaDocParsed.properties.payload.properties.ACPExtensionEventType.const != eventForSchemaSelection.payload.ACPExtensionEventType || schemaDocParsed.properties.payload.properties.ACPExtensionEventSource.const != eventForSchemaSelection.payload.ACPExtensionEventSource)) {
-        return 'No good schema match found! Not prompting the model to validate the events!'
+        return 'No good schema match found! Not prompting the model to validate the events!';
     }
 
     // Generate subset of events that can be supplied in the model prompt for validation
-    let eventsSubset = getEventsForCompletion(schemaResult, events, nlEvents);    
-    let eventsString = eventsSubset;
+    let eventsString = getEventsSubsetStringForCompletion(schemaResult, eventsToValidate, nlEvents); 
     
-    let res = await openAiCall(chain, schemaString, eventsString)
+    let res = await openAiCall(llmChain, schemaString, eventsString);
     console.log(res);
     return res.text;
 }
@@ -165,7 +170,7 @@ async function openAiCall(chain, schemaString, eventsString) {
     return res;
 }
 
-function getEventsForCompletion(schema, events, nlEvents = false) {
+function getEventsSubsetStringForCompletion(schema, events, nlEvents = false) {
     const schemaString = JSON.stringify(schema);
     const schemaTokensCount = countTokens(schemaString);
     console.log("schemaTokensCount: " + schemaTokensCount);
@@ -173,20 +178,20 @@ function getEventsForCompletion(schema, events, nlEvents = false) {
     const promptTemplateTokensCount = countTokens(promptTemplate);
     console.log("promptTemplateTokensCount: " + promptTemplateTokensCount);
 
-    const eventsArr = []
-    var eventsNL = ""
+    const eventsArr = [];
+    var eventsNL = "";
     var totalTokensCount = schemaTokensCount + promptTemplateTokensCount;
     for (const evt of events) {
         const eventTokensCount = countTokens(JSON.stringify(evt));
         if (totalTokensCount + eventTokensCount > MAX_INPUT_TOKENS_LENGTH) {
             return;
         }
-        totalTokensCount = totalTokensCount + eventTokensCount
+        totalTokensCount = totalTokensCount + eventTokensCount;
         console.log("totalTokensCount: " + totalTokensCount);
 
         eventsNL += ("\n" + GetTextForEvent(evt));
         
-        eventsArr.push(evt)
+        eventsArr.push(evt);
     }
     return nlEvents ? eventsNL : JSON.stringify(eventsArr);   
 }
@@ -204,12 +209,12 @@ function countTokens(input) {
 
 // Load JSON file and generate documents
 async function loadDoc(file) {
-    const jsonArr = file.map(e => JSON.stringify(e))
+    const jsonArr = file.map(e => JSON.stringify(e));
     const schemas = {
         "schemas": jsonArr
-    }
+    };
 
-    const loader = new JSONLoader(new Blob([JSON.stringify(schemas)], {type: "application/json"}))
+    const loader = new JSONLoader(new Blob([JSON.stringify(schemas)], {type: "application/json"}));
     const docs = await loader.load();
     return docs;
 }
@@ -222,8 +227,8 @@ async function createVectorStore() {
     }
 
     // Read event schemas from json file and convert those to documents using JSONLoader
-    const documents = await loadDoc(validationSchemasJSON)
-    console.log("Created schema documents.")
+    const documents = await loadDoc(validationSchemasJSON);
+    console.log("Created schema documents.");
     // documents.forEach(element => console.log(JSON.stringify(element.pageContent)))
    
     const memoryVectorStore = await MemoryVectorStore.fromDocuments(

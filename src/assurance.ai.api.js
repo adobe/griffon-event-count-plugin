@@ -72,18 +72,18 @@ function GetSDKEventsToValidate(events) {
         let sdkEvents = ExtractSDKEvents(events, matcher);
 
         console.log(`${sdkEvents.length} events extracted for ${extensionName} extension: `);
-        console.log(sdkEvents)
+        console.log(sdkEvents);
 
-        extensionsToSDKEventsMap.set(extensionName, sdkEvents)
+        extensionsToSDKEventsMap.set(extensionName, sdkEvents);
     }
 
     return extensionsToSDKEventsMap;
   };
 
 
-async function GetAIValidation(chain, vectorStore, sdkEvents) {
-  //const res = await submitCompletion(chain, vectorStore, sdkEvents, true, true); // NaturalLanguage Schema, NaturalLanguage Event
-  //const res = await submitCompletion(chain, vectorStore, sdkEvents, true, false); // NaturalLanguage Schema, JSON Event
-  const res = await submitCompletion(chain, vectorStore, sdkEvents); // JSON Schema, JSON Event
+async function GetAIValidation(llmChain, vectorStore, sdkEvents, promptText) {
+  //const res = await submitCompletion(llmChain, vectorStore, sdkEvents, promptText, true, true); // NaturalLanguage Schema, NaturalLanguage Event
+  //const res = await submitCompletion(llmChain, vectorStore, sdkEvents, promptText, true, false); // NaturalLanguage Schema, JSON Event
+  const res = await submitCompletion(llmChain, vectorStore, sdkEvents, promptText); // JSON Schema, JSON Event
   return res
 };
