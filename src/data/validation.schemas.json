@@ -692,7 +692,7 @@
                     },
                     "ACPExtensionEventType": {
                         "inherit": true,
-                        "const": "com.adobe.eventType.generic.identity"
+                        "const": "com.adobe.eventtype.generic.identity"
                     }
                 },
                 "additionalProperties": false,
@@ -929,8 +929,8 @@
                         "inherit": true,
                         "not": {
                             "enum": [
-                                "com.adobe.eventSource.errorresponsecontent",
-                                "com.adobe.eventSource.requestcontent"
+                                "com.adobe.eventsource.errorresponsecontent",
+                                "com.adobe.eventsource.requestcontent"
                             ]
                         }
                     },
@@ -1366,7 +1366,7 @@
                     },
                     "ACPExtensionEventSource": {
                         "inherit": true,
-                        "const": "com.adobe.eventSource.responsecontent"
+                        "const": "com.adobe.eventsource.responsecontent"
                     },
                     "ACPExtensionEventType": {
                         "inherit": true,
@@ -2118,8 +2118,8 @@
                         "inherit": true,
                         "not": {
                             "enum": [
-                                "com.adobe.eventSource.errorresponsecontent",
-                                "com.adobe.eventSource.requestcontent"
+                                "com.adobe.eventsource.errorresponsecontent",
+                                "com.adobe.eventsource.requestcontent"
                             ]
                         }
                     },
