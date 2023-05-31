@@ -122,11 +122,11 @@ export default function App() {
   return (
     <SpectrumProvider colorScheme="light" theme={lightTheme}>
       <View width="size-6000">
-        <Flex alignItems="end" justifyContent="space-between" width="100%">
+        <Flex justifyContent="space-evenly" direction="column" alignItems="center" width="100%">
           <TextArea
             label="Prompt"
             onChange={setPromptText}
-            width="size-5000"
+            width="size-6000"
             value={promptText}
           />
           <Button

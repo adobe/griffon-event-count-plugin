@@ -86,7 +86,7 @@ async function setupLLMChain() {
         frequencyPenalty: 0,
         presencePenalty: 0,
         maxTokens: 500,
-        stop: ['"""', "```", "###", "Note"]
+        stop: ['"""', "```", "###", "*/"]
       },
       {
         baseOptions: {
